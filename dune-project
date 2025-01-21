@@ -5,17 +5,18 @@
 (generate_opam_files true)
 
 (source
- (github username/reponame))
+ (github konstantiin/SAT-solver-for-BNN))
 
-(authors "Author Name <author@example.com>")
+(authors "konstantiin")
 
-(maintainers "Maintainer Name <maintainer@example.com>")
+(maintainers "konstantiin")
 
 (license LICENSE)
 
 (documentation https://url/to/documentation)
 
 (package
+ (allow_empty)
  (name BNNSATsolver)
  (synopsis "A short synopsis")
  (description "A longer description")
