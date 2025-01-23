@@ -295,6 +295,42 @@ let unit_tests =
            in
            assert_raises (Failure "could not convert to bool lists") (fun () ->
                assignment_to_bool_list assignment) );
+         ( "exists_unsat №1" >:: fun _ ->
+           let assignment =
+             let undef = init_assignment cnf1 in
+             let false1 =
+               CCPersistentArray.set undef 1
+                 { value = FALSE; antecender = None }
+             in
+             CCPersistentArray.set false1 5 { value = FALSE; antecender = None }
+           in
+           assert_equal ~printer:string_of_bool false
+             (exists_unsat cnf1 assignment) );
+         ( "exists_unsat №2" >:: fun _ ->
+           let assignment =
+             let undef = init_assignment cnf2 in
+             let false5 =
+               CCPersistentArray.set undef 5
+                 { value = FALSE; antecender = None }
+             in
+             CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
+           in
+           assert_equal ~printer:string_of_bool true
+             (is_conflict assignment [ 5; 6 ]) );
+         ( "is_conflict №3" >:: fun _ ->
+           let assignment =
+             let undef = init_assignment cnf2 in
+             let true5 =
+               CCPersistentArray.set undef 5 { value = TRUE; antecender = None }
+             in
+             let false6 =
+               CCPersistentArray.set true5 6
+                 { value = FALSE; antecender = None }
+             in
+             CCPersistentArray.set false6 1 { value = FALSE; antecender = None }
+           in
+           assert_equal ~printer:string_of_bool true
+             (is_conflict assignment [ 1; -5; 6 ]) );
          ( "cdcl №1" >:: fun _ ->
            assert_equal ~printer:result_printer
              (SAT [ true; true; true; true; true ])

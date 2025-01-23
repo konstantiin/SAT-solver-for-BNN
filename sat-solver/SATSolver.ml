@@ -130,30 +130,44 @@ let assignment_to_bool_list assignment =
           | UNDEF -> raise (Failure "could not convert to bool lists"))
         t
 
+let is_unsatisfiable assignment clause =
+  List.for_all
+    (fun l ->
+      match (CCPersistentArray.get assignment (abs l)).value with
+      | FALSE -> if l > 0 then true else false
+      | TRUE -> if l < 0 then true else false
+      | UNDEF -> false)
+    clause
+
+let exists_unsat clauses assignment =
+  List.exists (is_unsatisfiable assignment) clauses
+
 let rec cdcl_bf clauses assignment =
-  let propagated, conflict = unit_propagation clauses assignment in
-  match conflict with
-  | Some c ->
-      let new_clause = conflict_analyzist c propagated in
-      if List.is_empty new_clause then UNSAT clauses
-      else UNSAT (new_clause :: clauses)
-  | None -> (
-      let undef_var_opt = get_undef_var propagated in
-      match undef_var_opt with
-      | None -> SAT (assignment_to_bool_list assignment)
-      | Some undef_var -> (
-          let assume_true =
-            CCPersistentArray.set propagated undef_var
-              { value = TRUE; antecender = None }
-          in
-          match cdcl_bf clauses assume_true with
-          | SAT a -> SAT a
-          | UNSAT cnf ->
-              let assume_false =
-                CCPersistentArray.set propagated undef_var
-                  { value = FALSE; antecender = None }
-              in
-              cdcl_bf cnf assume_false))
+  if exists_unsat clauses assignment then UNSAT clauses
+  else
+    let propagated, conflict = unit_propagation clauses assignment in
+    match conflict with
+    | Some c ->
+        let new_clause = conflict_analyzist c propagated in
+        if List.is_empty new_clause then UNSAT clauses
+        else UNSAT (new_clause :: clauses)
+    | None -> (
+        let undef_var_opt = get_undef_var propagated in
+        match undef_var_opt with
+        | None -> SAT (assignment_to_bool_list assignment)
+        | Some undef_var -> (
+            let assume_true =
+              CCPersistentArray.set propagated undef_var
+                { value = TRUE; antecender = None }
+            in
+            match cdcl_bf clauses assume_true with
+            | SAT a -> SAT a
+            | UNSAT cnf ->
+                let assume_false =
+                  CCPersistentArray.set propagated undef_var
+                    { value = FALSE; antecender = None }
+                in
+                cdcl_bf cnf assume_false))
 
 let cdcl clauses =
   if not (verify_cnf clauses) then raise (Failure "this is not cnf");
