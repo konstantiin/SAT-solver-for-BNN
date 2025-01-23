@@ -1,2 +1,3 @@
 (library
- (name SATSolver))
+ (name SATSolver)
+ (libraries utils containers-data))

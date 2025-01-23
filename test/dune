@@ -1,3 +1,3 @@
 (test
  (name test_BNNSATsolver)
- (libraries SATSolver BNN))
+ (libraries SATSolver BNN ounit2 utils))
