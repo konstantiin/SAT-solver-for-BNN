@@ -34,10 +34,11 @@ let alloc_weights cfg n =
       }
   | _ -> raise (Failure "weights should be assigned before extra variables")
 
-let alloc_extra_one cfg = (1 + List.hd cfg.extra_vars, alloc_extra cfg 1)
+let alloc_extra_one cfg =
+  let cfg = alloc_extra cfg 1 in
+  (List.hd cfg.extra_vars, cfg)
 
 let get_next (cfg, a, cnf) x =
-  let cfg = alloc_extra cfg 2 in
   let b0, cfg = alloc_extra_one cfg in
   let b1, cfg = alloc_extra_one cfg in
   let b = b0 :: x :: [ b1 ] in
@@ -49,7 +50,7 @@ let get_next (cfg, a, cnf) x =
   let range_0_m1 = 0 -- m1 in
   let range_0_m2 = 0 -- m2 in
   let cnf =
-    [ b0 ] :: [ List.hd r ] :: [ -b1 ] :: [ List.nth r (m + 1) ] :: cnf
+    [ b0 ] :: [ List.hd r ] :: [ -b1 ] :: [ -List.nth r (m + 1) ] :: cnf
   in
   let new_cnf =
     List.fold_left
@@ -68,10 +69,10 @@ let get_next (cfg, a, cnf) x =
   (cfg, r, new_cnf)
 
 let at_least_k input_var k cnf cfg =
-  let cfg = alloc_extra cfg 2 in
-  let b0 = List.hd cfg.extra_vars in
-  let b1 = List.nth cfg.extra_vars 1 in
-  let init = b0 :: List.hd input_var :: [ b1 ] in
+  let init0, cfg = alloc_extra_one cfg in
+  let init1, cfg = alloc_extra_one cfg in
+  let init = init0 :: List.hd input_var :: [ init1 ] in
+  let cnf = [ init0 ] :: [ -init1 ] :: cnf in
   let result_cfg, last_vec, result_cnf =
     List.fold_left get_next (cfg, init, cnf) (List.tl input_var)
   in
@@ -117,21 +118,23 @@ module type S = sig
 end
 
 module Sequantial (Sequence : S) = struct
-  (* let predictor_of_cnf_solution solution =
+  let predictor_of_cnf_solution solution =
     let _, sequence =
       List.fold_left_map
         (fun solution_cur component ->
           match component with
-          | Linear (inp, out) ->
-              let w_cnt = inp * out in
+          | Linear (n, m) ->
+              let w_cnt = n * m in
               let weights =
                 List.take w_cnt solution_cur
                 |> List.map (fun b -> if b then 1 else -1)
+                |> unflatten n m
               in
               (List.drop w_cnt solution, Fun.compose (linear weights) sign))
         solution Sequence.components
     in
-    List.fold_left Fun.compose Fun.id sequence *)
+    List.fold_left Fun.compose Fun.id sequence
+
   let get_cnf (train_batch : train_data_t list) =
     let cnf = [] in
     let cfg = { weights = []; extra_vars = [] } in
@@ -140,9 +143,11 @@ module Sequantial (Sequence : S) = struct
         (fun cfg layer ->
           match layer with
           | Linear (n, m) ->
-              let sz = n * m in
-              let cfg = alloc_weights cfg sz in
-              let cur_weights = unflatten (List.take sz cfg.weights) n m in
+              let w_cnt = n * m in
+              let cfg = alloc_weights cfg w_cnt in
+              let cur_weights =
+                cfg.weights |> List.take w_cnt |> unflatten n m
+              in
               (cfg, cur_weights))
         cfg Sequence.components
     in

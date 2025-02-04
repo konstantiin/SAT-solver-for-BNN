@@ -19,7 +19,7 @@ let rec enumerate_acc lst sz acc i =
 
 let enumerate lst sz = List.rev (enumerate_acc lst sz [] 0)
 
-let unflatten lst n m =
+let unflatten n m lst =
   let res =
     List.fold_left
       (fun ans (li, i) ->
