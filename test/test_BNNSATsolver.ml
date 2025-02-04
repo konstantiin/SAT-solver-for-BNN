@@ -402,6 +402,10 @@ let bnn_unit_tests =
            assert_equal ~printer:string_of_int_list_list
              [ [ 1; 2; 3; 4 ]; [ 5; 4; 3; 2 ] ]
              (unflatten 2 4 [ 1; 2; 3; 4; 5; 4; 3; 2 ]) );
+         ( "enumerate №2" >:: fun _ ->
+           assert_equal
+             [ (1, 0); (2, 1); (3, 2); (9, 3) ]
+             (enumerate [ 1; 2; 3; 9 ] 4) );
        ]
 
 let _ = run_test_tt_main bnn_unit_tests
