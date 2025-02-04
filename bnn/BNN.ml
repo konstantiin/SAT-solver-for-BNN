@@ -8,6 +8,7 @@ let sign x = List.map (fun el -> if el >= 0 then 1 else -1) x
 
 type component_t = Linear of int * int
 type config_t = { weights : int list; extra_vars : int list }
+type train_data_t = int list * int
 
 let rec alloc_extra cfg n =
   if n = 0 then cfg
@@ -22,6 +23,16 @@ let rec alloc_extra cfg n =
     alloc_extra
       { weights = cfg.weights; extra_vars = n_var :: cfg.extra_vars }
       (n - 1)
+
+let alloc_weights cfg n =
+  match cfg.extra_vars with
+  | [] ->
+      let last = match cfg.weights with [] -> 0 | h :: _ -> h in
+      {
+        weights = cfg.weights @ (last + 1 -- (last + n));
+        extra_vars = cfg.extra_vars;
+      }
+  | _ -> raise (Failure "weights should be assigned before extra variables")
 
 let alloc_extra_one cfg = (1 + List.hd cfg.extra_vars, alloc_extra cfg 1)
 
@@ -81,10 +92,25 @@ let scalar_mul_to_cnf (cnf, cfg) (vec1, vec2) =
   let k_for_pos = (1 + List.length res_vars) / 2 in
   at_least_k res_vars k_for_pos cnf cfg
 
-let linear_to_cnf cnf cfg input weights =
-  List.fold_left_map
-    (fun acc line -> scalar_mul_to_cnf acc (input, line))
-    (cnf, cfg) weights
+let linear_to_cnf (cnf, cfg, input) weights =
+  let (cnf, cfg), res_vars =
+    List.fold_left_map
+      (fun acc line -> scalar_mul_to_cnf acc (input, line))
+      (cnf, cfg) weights
+  in
+  (cnf, cfg, res_vars)
+
+let cnf_from_sample weights (cnf, cfg) sample =
+  let input, output = sample in
+  let cnf, cfg, last = List.fold_left linear_to_cnf (cnf, cfg, input) weights in
+  let cnf =
+    List.fold_left2
+      (fun cnf label i ->
+        if i = output then [ label ] :: cnf else [ -label ] :: cnf)
+      cnf last
+      (0 -- (List.length last - 1))
+  in
+  (cnf, cfg)
 
 module type S = sig
   val components : component_t list
@@ -106,23 +132,22 @@ module Sequantial (Sequence : S) = struct
         solution Sequence.components
     in
     List.fold_left Fun.compose Fun.id sequence *)
-  let cnf =
-    let input_features =
-      match List.hd Sequence.components with
-      | Linear (input, _) -> List.rev (1 -- input)
+  let get_cnf (train_batch : train_data_t list) =
+    let cnf = [] in
+    let cfg = { weights = []; extra_vars = [] } in
+    let cfg, weights =
+      List.fold_left_map
+        (fun cfg layer ->
+          match layer with
+          | Linear (n, m) ->
+              let sz = n * m in
+              let cfg = alloc_weights cfg sz in
+              let cur_weights = unflatten (List.take sz cfg.weights) n m in
+              (cfg, cur_weights))
+        cfg Sequence.components
     in
-    let pure_weights_cnt =
-      1
-      + List.fold_left
-          (fun cnt -> function Linear (i, o) -> cnt + (i * o))
-          0 Sequence.components
+    let cnf, _ =
+      List.fold_left (cnf_from_sample weights) (cnf, cfg) train_batch
     in
-    let _, res, _, _ =
-      List.fold_left linear_to_cnf
-        (input_features, [], 1, pure_weights_cnt)
-        Sequence.components
-    in
-    res
-
-  let apply_train_data train_data = smth
+    cnf
 end
