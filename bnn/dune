@@ -1,2 +1,3 @@
 (library
- (name BNN))
+ (name BNN)
+ (libraries utils SATSolver))

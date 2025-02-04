@@ -1,6 +1,7 @@
 open OUnit2
 open SATSolver
 open Utils
+open BNN
 
 (*
    (x1 + x5 + ~x2) & (x1 + ~x3) & (x2 + x3 + x4)
@@ -33,8 +34,8 @@ let assignment_printer assignment =
 let assignment_cmp a1 a2 =
   Stdlib.( = ) (CCPersistentArray.to_list a1) (CCPersistentArray.to_list a2)
 
-let result_printer result =
-  match result with
+let answer_printer answer =
+  match answer with
   | SAT v -> String.concat "" [ string_of_bool_list v; "\n" ]
   | UNSAT _ -> "UNSAT\n"
 
@@ -49,7 +50,7 @@ let assignment_cmp_opt a1 a2 =
   | Some as1 -> (
       match a2 with None -> false | Some as2 -> assignment_cmp as1 as2)
 
-let unit_tests =
+let satsolver_unit_tests =
   "SATsolver unit tests"
   >::: [
          ("verify_cnf №1" >:: fun _ -> assert_equal true (verify_cnf cnf1));
@@ -308,35 +309,36 @@ let unit_tests =
              (exists_unsat cnf1 assignment) );
          ( "exists_unsat №2" >:: fun _ ->
            let assignment =
-             let undef = init_assignment cnf2 in
-             let false5 =
-               CCPersistentArray.set undef 5
+             let undef = init_assignment cnf1 in
+             let false1 =
+               CCPersistentArray.set undef 1
                  { value = FALSE; antecender = None }
              in
-             CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
+             CCPersistentArray.set false1 5 { value = FALSE; antecender = None }
            in
            assert_equal ~printer:string_of_bool true
-             (is_conflict assignment [ 5; 6 ]) );
-         ( "is_conflict №3" >:: fun _ ->
+             (exists_unsat [ [ 2; 3 ]; [ 1; 5 ] ] assignment) );
+         ( "exists_unsat №3" >:: fun _ ->
            let assignment =
-             let undef = init_assignment cnf2 in
-             let true5 =
-               CCPersistentArray.set undef 5 { value = TRUE; antecender = None }
-             in
-             let false6 =
-               CCPersistentArray.set true5 6
+             let undef = init_assignment cnf1 in
+             let false1 =
+               CCPersistentArray.set undef 1
                  { value = FALSE; antecender = None }
              in
-             CCPersistentArray.set false6 1 { value = FALSE; antecender = None }
+             let false5 =
+               CCPersistentArray.set false1 5
+                 { value = FALSE; antecender = None }
+             in
+             CCPersistentArray.set false5 2 { value = TRUE; antecender = None }
            in
            assert_equal ~printer:string_of_bool true
-             (is_conflict assignment [ 1; -5; 6 ]) );
+             (exists_unsat [ [ 2; 3; 4 ]; [ -2; 1; 5 ] ] assignment) );
          ( "cdcl №1" >:: fun _ ->
-           assert_equal ~printer:result_printer
+           assert_equal ~printer:answer_printer
              (SAT [ true; true; true; true; true ])
              (cdcl cnf1) );
          ( "cdcl №2" >:: fun _ ->
-           assert_equal ~printer:result_printer
+           assert_equal ~printer:answer_printer
              (SAT [ true; true; true; true; false; true; true; true ])
              (cdcl cnf2) );
          ( "cdcl №3" >:: fun _ ->
@@ -348,7 +350,46 @@ let unit_tests =
                    match r2 with
                    | UNSAT _ -> false
                    | SAT res2 -> Stdlib.( = ) res1 res2))
-             ~printer:result_printer (UNSAT []) (cdcl cnf3) );
+             ~printer:answer_printer (UNSAT []) (cdcl cnf3) );
        ]
 
-let _ = run_test_tt_main unit_tests
+let _ = run_test_tt_main satsolver_unit_tests
+
+let bnn_unit_tests =
+  "BNN unit tests"
+  >::: [
+         ( "at_least_k №1" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list
+             [
+               [ 13 ];
+               [ -8; -2; 14 ];
+               [ 9; 11; -15 ];
+               [ -8; -10; 13 ];
+               [ 9; 2; -14 ];
+               [ -7; -2; 13 ];
+               [ 8; 11; -14 ];
+               [ -7; -10; 12 ];
+               [ 8; 2; -13 ];
+               [ 10 ];
+               [ 12 ];
+               [ -11 ];
+               [ -15 ];
+               [ -3; -1; 8 ];
+               [ 4; 6; -9 ];
+               [ -3; -5; 7 ];
+               [ 4; 1; -8 ];
+               [ 5 ];
+               [ 7 ];
+               [ -6 ];
+               [ -9 ];
+               [ 3 ];
+               [ -4 ];
+             ]
+             (at_least_k [ 1; 2 ] 1) );
+         ( "unflatten №1" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list
+             [ [ 1; 2; 3; 4 ]; [ 5; 4; 3; 2 ] ]
+             (unflatten [ 1; 2; 3; 4; 5; 4; 3; 2 ] 2 4) );
+       ]
+
+let _ = run_test_tt_main bnn_unit_tests

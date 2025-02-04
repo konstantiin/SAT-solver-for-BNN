@@ -6,7 +6,7 @@ type cnf_t = clause_t list
 type value_t = TRUE | FALSE | UNDEF
 type variable_t = { value : value_t; antecender : clause_t option }
 type assignment_t = variable_t CCPersistentArray.t
-type result_t = UNSAT of cnf_t | SAT of bool list
+type answer_t = UNSAT of cnf_t | SAT of bool list
 
 let verify_cnf clauses =
   let vars = List.flatten clauses |> List.map abs |> Intset.of_list in
