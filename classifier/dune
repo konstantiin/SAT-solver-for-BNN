@@ -1,0 +1,4 @@
+(executable
+ (public_name classifier)
+ (name main)
+ (libraries SATSolver BNN utils csv graphics unix camlimages.core camlimages.graphics))

@@ -39,17 +39,6 @@ let answer_printer answer =
   | SAT v -> String.concat "" [ string_of_bool_list v; "\n" ]
   | UNSAT _ -> "UNSAT\n"
 
-let assignment_printer_opt assignment_opt =
-  match assignment_opt with
-  | None -> "None"
-  | Some assignment -> assignment_printer assignment
-
-let assignment_cmp_opt a1 a2 =
-  match a1 with
-  | None -> ( match a2 with None -> true | Some _ -> false)
-  | Some as1 -> (
-      match a2 with None -> false | Some as2 -> assignment_cmp as1 as2)
-
 let satsolver_unit_tests =
   "SATsolver unit tests"
   >::: [
@@ -84,55 +73,6 @@ let satsolver_unit_tests =
              CCPersistentArray.set undef 1 { value = FALSE; antecender = None }
            in
            assert_equal None (opt_unit assignment [ 1; 8; -2 ]) );
-         ( "resolve_unit_clause_if_any №1" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf1 in
-             CCPersistentArray.set undef 1 { value = FALSE; antecender = None }
-           in
-           let expected =
-             CCPersistentArray.set assignment 3
-               { value = FALSE; antecender = Some [ 1; -3 ] }
-           in
-           assert_equal ~cmp:assignment_cmp_opt ~printer:assignment_printer_opt
-             (Some expected)
-             (resolve_unit_clause_if_any cnf1 assignment) );
-         ( "resolve_unit_clause_if_any №2" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf2 in
-             let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
-             in
-             CCPersistentArray.set false1 8 { value = FALSE; antecender = None }
-           in
-           let expected =
-             CCPersistentArray.set assignment 2
-               { value = FALSE; antecender = Some [ 1; 8; -2 ] }
-           in
-           assert_equal ~cmp:assignment_cmp_opt ~printer:assignment_printer_opt
-             (Some expected)
-             (resolve_unit_clause_if_any cnf2 assignment) );
-         ( "is_conflict №1" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf1 in
-             let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
-             in
-             let false5 =
-               CCPersistentArray.set false1 5
-                 { value = FALSE; antecender = None }
-             in
-             let one_resolved_opt = resolve_unit_clause_if_any cnf1 false5 in
-             match one_resolved_opt with
-             | None -> raise (Failure "resolve_unit_if_any error")
-             | Some one_resolved -> (
-                 match resolve_unit_clause_if_any cnf1 one_resolved with
-                 | None -> raise (Failure "resolve_unit_if_any error")
-                 | Some c -> c)
-           in
-           assert_equal ~printer:string_of_bool false
-             (is_conflict assignment [ 2; 3; 4 ]) );
          ( "is_conflict №2" >:: fun _ ->
            let assignment =
              let undef = init_assignment cnf2 in
@@ -177,7 +117,8 @@ let satsolver_unit_tests =
                4
                { value = TRUE; antecender = Some [ 2; 3; 4 ] }
            in
-           let got, conflict = unit_propagation cnf1 assignment in
+           let clause_by_var = get_clause_by_var cnf1 in
+           let got, conflict = unit_propagation cnf1 clause_by_var assignment in
            assert_equal None conflict;
            assert_equal ~cmp:assignment_cmp ~printer:assignment_printer got
              expected );
@@ -191,7 +132,8 @@ let satsolver_unit_tests =
              CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
            in
            let expected = assignment in
-           let got, conflict = unit_propagation cnf2 assignment in
+           let clause_by_var = get_clause_by_var cnf2 in
+           let got, conflict = unit_propagation cnf2 clause_by_var assignment in
            assert_equal (Some [ 5; 6 ]) conflict;
            assert_equal ~cmp:assignment_cmp ~printer:assignment_printer got
              expected );
@@ -204,7 +146,8 @@ let satsolver_unit_tests =
              in
              CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
            in
-           let a, conflict = unit_propagation cnf2 assignment in
+           let clause_by_var = get_clause_by_var cnf2 in
+           let a, conflict = unit_propagation cnf2 clause_by_var assignment in
            match conflict with
            | None -> raise (Failure "unit_propagation error")
            | Some c ->
@@ -220,7 +163,8 @@ let satsolver_unit_tests =
              CCPersistentArray.set false5 6
                { value = FALSE; antecender = Some [ 7; -4; -6 ] }
            in
-           let a, conflict = unit_propagation cnf2 assignment in
+           let clause_by_var = get_clause_by_var cnf2 in
+           let a, conflict = unit_propagation cnf2 clause_by_var assignment in
            match conflict with
            | None -> raise (Failure "unit_propagation error")
            | Some c ->

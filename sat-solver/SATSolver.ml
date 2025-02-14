@@ -37,16 +37,6 @@ let opt_unit assignment clause =
   let opt_id = opt_unit_acc assignment clause (0, 0) in
   match opt_id with 0, _ -> None | 1, l -> Some (l, clause) | _, _ -> None
 
-let resolve_unit_clause_if_any clauses assignment =
-  let unit_clause = List.find_map (opt_unit assignment) clauses in
-  match unit_clause with
-  | None -> None
-  | Some (l, clause) ->
-      let new_literal =
-        { value = (if l > 0 then TRUE else FALSE); antecender = Some clause }
-      in
-      Some (CCPersistentArray.set assignment (abs l) new_literal)
-
 let rec is_conflict assignment clause =
   match clause with
   | [] -> true
@@ -64,15 +54,31 @@ let rec is_conflict assignment clause =
       | TRUE -> false
       | UNDEF -> false)
 
-let rec unit_propagation clauses assignment =
-  let conflict_clause = List.find_opt (is_conflict assignment) clauses in
-  match conflict_clause with
-  | Some conflict -> (assignment, Some conflict)
-  | None -> (
-      let new_assignment = resolve_unit_clause_if_any clauses assignment in
-      match new_assignment with
-      | None -> (assignment, None)
-      | Some a -> unit_propagation clauses a)
+let rec unit_propagation possible_clauses clause_by_var assignment =
+  let _ = print_int (List.length possible_clauses) in
+  match possible_clauses with
+  | [] -> (assignment, None)
+  | cur_clause :: t -> (
+      if is_conflict assignment cur_clause then (assignment, Some cur_clause)
+      else
+        let unit_opt = opt_unit assignment cur_clause in
+        match unit_opt with
+        | None -> unit_propagation t clause_by_var assignment
+        | Some (l, clause) ->
+            let new_literal =
+              {
+                value = (if l > 0 then TRUE else FALSE);
+                antecender = Some clause;
+              }
+            in
+            let id = abs l in
+            let new_assignment =
+              CCPersistentArray.set assignment id new_literal
+            in
+            let new_possible = clause_by_var.(id) in
+            unit_propagation
+              (new_possible @ possible_clauses)
+              clause_by_var new_assignment)
 
 let init_assignment clauses =
   let vars = List.flatten clauses |> List.map (fun x -> abs x) in
@@ -142,10 +148,27 @@ let is_unsatisfiable assignment clause =
 let exists_unsat clauses assignment =
   List.exists (is_unsatisfiable assignment) clauses
 
-let rec cdcl_bf clauses assignment =
+let get_clause_by_var clauses =
+  let max_var = List.flatten clauses |> List.map abs |> List.fold_left max 0 in
+  let arr = Array.make (max_var + 1) [] in
+  let _ = print_int max_var in
+  List.iter
+    (fun clause ->
+      List.iter
+        (fun l ->
+          let id = abs l in
+          arr.(id) <- clause :: arr.(id))
+        clause)
+    clauses;
+  arr
+
+let rec cdcl_bf clauses assignment possible_unit clause_by_var =
   if exists_unsat clauses assignment then UNSAT clauses
   else
-    let propagated, conflict = unit_propagation clauses assignment in
+    let propagated, conflict =
+      unit_propagation possible_unit clause_by_var assignment
+    in
+    let _ = print_endline "yet another unit propagation finished" in
     match conflict with
     | Some c ->
         let new_clause = conflict_analyzist c propagated in
@@ -160,17 +183,28 @@ let rec cdcl_bf clauses assignment =
               CCPersistentArray.set propagated undef_var
                 { value = TRUE; antecender = None }
             in
-            match cdcl_bf clauses assume_true with
+            match
+              cdcl_bf clauses assume_true clause_by_var.(undef_var)
+                clause_by_var
+            with
             | SAT a -> SAT a
             | UNSAT cnf ->
                 let assume_false =
                   CCPersistentArray.set propagated undef_var
                     { value = FALSE; antecender = None }
                 in
-                cdcl_bf cnf assume_false))
+                cdcl_bf cnf assume_false clause_by_var.(undef_var) clause_by_var
+            ))
 
 let cdcl clauses =
+  let _ = print_endline "start verifying " in
   if not (verify_cnf clauses) then raise (Failure "this is not cnf");
+  let _ = print_endline "start solving " in
   let simplified_clauses = preprocess clauses in
+  let _ = print_endline "preprocess finished" in
   let init_assignment = init_assignment simplified_clauses in
-  cdcl_bf simplified_clauses init_assignment
+  let _ = print_endline "got init assignment" in
+  let clause_by_var = get_clause_by_var simplified_clauses in
+  let _ = print_endline "get claues by var" in
+
+  cdcl_bf simplified_clauses init_assignment simplified_clauses clause_by_var
