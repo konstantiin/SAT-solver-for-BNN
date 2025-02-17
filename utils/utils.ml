@@ -48,6 +48,7 @@ let rec remove_if_any_acc acc lst x =
 
 let remove_if_any lst x = remove_if_any_acc [] lst x
 
+(*lst1 \ lst2*)
 let remove_intersection lst1 lst2 =
   List.filter
     (fun x ->
@@ -64,3 +65,8 @@ let is_intersecting lst1 lst2 =
         let fopt = List.find_opt (fun y -> x = y) lst2 in
         match fopt with None -> acc | Some _ -> true)
     false lst1
+
+let rec greater_than lst sz =
+  if lst = [] then false
+  else if sz = 0 then true
+  else greater_than (List.tl lst) (sz - 1)

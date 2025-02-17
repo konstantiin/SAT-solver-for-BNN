@@ -1,6 +1,12 @@
 open SATSolver
 
-type config_t = { weights : int list; extra_vars : int list }
+type config_t = {
+  weights : int list;
+  extra_vars : int list;
+  g_true : int;
+  g_false : int;
+}
+
 type component_t = Linear of int * int
 type train_data_t = int list * int
 
@@ -12,6 +18,7 @@ module type S = sig
 end
 
 module Sequantial : (_ : S) -> sig
+  val weights_cnt : int
   val predictor_of_cnf_solution : bool list -> int list -> int list
   val get_cnf : train_data_t list -> cnf_t
 end

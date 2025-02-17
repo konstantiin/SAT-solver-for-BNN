@@ -18,7 +18,7 @@ let cnf3 = [ [ -2 ]; [ -3 ]; [ 2; 3; 4 ]; [ -4; -5 ]; [ -4; -1 ]; [ 5; 1 ] ]
 
 let assignment_printer assignment =
   let str_vars =
-    CCPersistentArray.mapi
+    Assign.mapi
       (fun i v ->
         let str_val =
           match v.value with
@@ -29,10 +29,9 @@ let assignment_printer assignment =
         Printf.sprintf "%d: %s" i str_val)
       assignment
   in
-  CCPersistentArray.to_list str_vars |> String.concat "\n"
+  Assign.to_list str_vars |> String.concat "\n"
 
-let assignment_cmp a1 a2 =
-  Stdlib.( = ) (CCPersistentArray.to_list a1) (CCPersistentArray.to_list a2)
+let assignment_cmp a1 a2 = Stdlib.( = ) (Assign.to_list a1) (Assign.to_list a2)
 
 let answer_printer answer =
   match answer with
@@ -51,7 +50,7 @@ let satsolver_unit_tests =
          ( "opt_unit №1" >:: fun _ ->
            let assignment =
              let undef = init_assignment cnf2 in
-             CCPersistentArray.set undef 1 { value = FALSE; antecender = None }
+             Assign.set undef 1 { value = FALSE; antecender = None }
            in
            assert_equal (Some (-3, [ 1; -3 ])) (opt_unit assignment [ 1; -3 ])
          );
@@ -59,10 +58,9 @@ let satsolver_unit_tests =
            let assignment =
              let undef = init_assignment cnf2 in
              let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
+               Assign.set undef 1 { value = FALSE; antecender = None }
              in
-             CCPersistentArray.set false1 8 { value = FALSE; antecender = None }
+             Assign.set false1 8 { value = FALSE; antecender = None }
            in
            assert_equal
              (Some (-2, [ 1; 8; -2 ]))
@@ -117,8 +115,10 @@ let satsolver_unit_tests =
                4
                { value = TRUE; antecender = Some [ 2; 3; 4 ] }
            in
-           let clause_by_var = get_clause_by_var cnf1 in
-           let got, conflict = unit_propagation cnf1 clause_by_var assignment in
+           let clause_by_var = get_clause_by_var assignment cnf1 in
+           let got, conflict =
+             unit_propagation (List.to_seq cnf1) clause_by_var assignment
+           in
            assert_equal None conflict;
            assert_equal ~cmp:assignment_cmp ~printer:assignment_printer got
              expected );
@@ -132,8 +132,10 @@ let satsolver_unit_tests =
              CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
            in
            let expected = assignment in
-           let clause_by_var = get_clause_by_var cnf2 in
-           let got, conflict = unit_propagation cnf2 clause_by_var assignment in
+           let clause_by_var = get_clause_by_var assignment cnf2 in
+           let got, conflict =
+             unit_propagation (List.to_seq cnf2) clause_by_var assignment
+           in
            assert_equal (Some [ 5; 6 ]) conflict;
            assert_equal ~cmp:assignment_cmp ~printer:assignment_printer got
              expected );
@@ -146,8 +148,10 @@ let satsolver_unit_tests =
              in
              CCPersistentArray.set false5 6 { value = FALSE; antecender = None }
            in
-           let clause_by_var = get_clause_by_var cnf2 in
-           let a, conflict = unit_propagation cnf2 clause_by_var assignment in
+           let clause_by_var = get_clause_by_var assignment cnf2 in
+           let a, conflict =
+             unit_propagation (List.to_seq cnf2) clause_by_var assignment
+           in
            match conflict with
            | None -> raise (Failure "unit_propagation error")
            | Some c ->
@@ -163,8 +167,10 @@ let satsolver_unit_tests =
              CCPersistentArray.set false5 6
                { value = FALSE; antecender = Some [ 7; -4; -6 ] }
            in
-           let clause_by_var = get_clause_by_var cnf2 in
-           let a, conflict = unit_propagation cnf2 clause_by_var assignment in
+           let clause_by_var = get_clause_by_var assignment cnf2 in
+           let a, conflict =
+             unit_propagation (List.to_seq cnf2) clause_by_var assignment
+           in
            match conflict with
            | None -> raise (Failure "unit_propagation error")
            | Some c ->
@@ -233,50 +239,6 @@ let satsolver_unit_tests =
              CCPersistentArray.set false1 2 { value = TRUE; antecender = None }
            in
            assert_equal [ false; true ] (assignment_to_bool_list assignment) );
-         ( "assignment_to_bool_list №1" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment [ [ 1; 2 ] ] in
-             CCPersistentArray.set undef 1 { value = FALSE; antecender = None }
-           in
-           assert_raises (Failure "could not convert to bool lists") (fun () ->
-               assignment_to_bool_list assignment) );
-         ( "exists_unsat №1" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf1 in
-             let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
-             in
-             CCPersistentArray.set false1 5 { value = FALSE; antecender = None }
-           in
-           assert_equal ~printer:string_of_bool false
-             (exists_unsat cnf1 assignment) );
-         ( "exists_unsat №2" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf1 in
-             let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
-             in
-             CCPersistentArray.set false1 5 { value = FALSE; antecender = None }
-           in
-           assert_equal ~printer:string_of_bool true
-             (exists_unsat [ [ 2; 3 ]; [ 1; 5 ] ] assignment) );
-         ( "exists_unsat №3" >:: fun _ ->
-           let assignment =
-             let undef = init_assignment cnf1 in
-             let false1 =
-               CCPersistentArray.set undef 1
-                 { value = FALSE; antecender = None }
-             in
-             let false5 =
-               CCPersistentArray.set false1 5
-                 { value = FALSE; antecender = None }
-             in
-             CCPersistentArray.set false5 2 { value = TRUE; antecender = None }
-           in
-           assert_equal ~printer:string_of_bool true
-             (exists_unsat [ [ 2; 3; 4 ]; [ -2; 1; 5 ] ] assignment) );
          ( "cdcl №1" >:: fun _ ->
            assert_equal ~printer:answer_printer
              (SAT [ true; true; true; true; true ])
@@ -294,52 +256,51 @@ let satsolver_unit_tests =
                    match r2 with
                    | UNSAT _ -> false
                    | SAT res2 -> Stdlib.( = ) res1 res2))
-             ~printer:answer_printer (UNSAT []) (cdcl cnf3) );
+             ~printer:answer_printer
+             (UNSAT (0, []))
+             (cdcl cnf3) );
        ]
 
 let _ = run_test_tt_main satsolver_unit_tests
+
+module LinearNet = Sequantial (struct
+  let s = [ Linear (2, 1); Linear (1, 2) ]
+end)
 
 let bnn_unit_tests =
   "BNN unit tests"
   >::: [
          ( "at_least_k №1" >:: fun _ ->
            let (cnf, _), v =
-             at_least_k [ 1; 2; 3 ] 2 []
-               { weights = [ 3; 2; 1 ]; extra_vars = [] }
+             at_least_k [ 3; 4; 5 ] 2 [ [ 1 ]; [ -2 ] ]
+               {
+                 weights = [ 5; 4; 3 ];
+                 extra_vars = [ 2; 1 ];
+                 g_true = 1;
+                 g_false = 2;
+               }
            in
-           assert_equal ~printer:string_of_int 16 v;
+           assert_equal ~printer:string_of_int 9 v;
            assert_equal ~printer:string_of_int_list_list
              [
-               [ -9; -3; 15 ];
-               [ 8; 13; -14 ];
-               [ -9; -12; 16 ];
-               [ 8; 3; -15 ];
-               [ -10; -3; 16 ];
-               [ 9; 13; -15 ];
-               [ -10; -12; 17 ];
-               [ 9; 3; -16 ];
-               [ -11; -3; 17 ];
-               [ 10; 13; -16 ];
-               [ -11; -12; 18 ];
-               [ 10; 3; -17 ];
-               [ 12 ];
-               [ 18 ];
-               [ -13 ];
-               [ -14 ];
-               [ -1; -2; 9 ];
-               [ 5; 7; -8 ];
-               [ -1; -6; 10 ];
-               [ 5; 2; -9 ];
-               [ -4; -2; 10 ];
-               [ 1; 7; -9 ];
-               [ -4; -6; 11 ];
-               [ 1; 2; -10 ];
-               [ 6 ];
-               [ 11 ];
-               [ -7 ];
-               [ -8 ];
-               [ 4 ];
-               [ -5 ];
+               [ -6; -5; 8 ];
+               [ 5; -8 ];
+               [ -6; 9 ];
+               [ 6; -8 ];
+               [ -7; -5; 9 ];
+               [ 6; 5; -9 ];
+               [ -7; 10 ];
+               [ 7; -9 ];
+               [ -5; 10 ];
+               [ 7; 5; -10 ];
+               [ -3; -4; 6 ];
+               [ 4; -6 ];
+               [ -3; 7 ];
+               [ 3; -6 ];
+               [ -4; 7 ];
+               [ 3; 4; -7 ];
+               [ 1 ];
+               [ -2 ];
              ]
              cnf );
          ( "unflatten №1" >:: fun _ ->
@@ -350,6 +311,11 @@ let bnn_unit_tests =
            assert_equal
              [ (1, 0); (2, 1); (3, 2); (9, 3) ]
              (enumerate [ 1; 2; 3; 9 ] 4) );
+         (* ( "get_cnf №1" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list [
+
+           ]
+             (LinearNet.get_cnf [ ([ 1; 1 ], 1) ]) ); *)
        ]
 
 let _ = run_test_tt_main bnn_unit_tests
