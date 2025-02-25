@@ -1,56 +1,84 @@
-(* open Utils *)
 open BNN
 
-let train_data = Csv.load "fashion-mnist/fashion-mnist_train.csv"
-let threshold = 200
+type feature = Num of float | Str of string
 
-(* let images data =
-  List.tl data
-  |> List.map (fun img ->
-         img |> List.tl
-         |> List.map (fun p -> if int_of_string p > threshold then 255 else 0)
-         |> unflatten 28 28 |> List.map Array.of_list |> Array.of_list)
-
-let print_sample img =
-  let _ =
-    Graphics.open_graph "";
-    print_endline "showing image";
-    let cimg = Graphics.make_image img |> Graphic_image.image_of in
-    let resized = Images.Rgb24 (Rgb24.resize None cimg 400 400) in
-    (resized |> Graphic_image.of_image |> Graphics.draw_image) 100 100;
-    Graphics.close_graph
+let categorize (features : feature list) =
+  let uniq =
+    let vals =
+      List.sort_uniq
+        (fun f1 f2 ->
+          match f1 with
+          | Num n1 -> (
+              match f2 with
+              | Str _ -> raise (Failure "social credit -100500")
+              | Num n2 -> Float.compare n1 n2)
+          | Str s1 -> (
+              match f2 with
+              | Str s2 -> String.compare s1 s2
+              | Num _ -> raise (Failure "social credit -100500")))
+        features
+    in
+    Utils.enumerate vals (List.length vals)
   in
-  ()
-
-let _ = print_sample (List.hd (images train_data)) *)
-
-let all =
+  let features_cnt = List.length uniq in
   List.map
-    (fun image ->
-      let label = int_of_string (List.hd image) in
-      let pixels = List.map int_of_string (List.tl image) in
-      (pixels, label))
-    (List.tl train_data)
+    (fun f ->
+      let id = List.assoc f uniq in
+      Utils.int_to_vec id features_cnt)
+    features
 
-let train = List.sort_uniq (fun (_, l1) (_, l2) -> compare l1 l2) all
-(* List.take train_sz all
-  |> List.map (fun (img, l) ->
-         (List.map (fun x -> if x > threshold then 1 else -1) img, l)) *)
+let header, train_data_raw =
+  let df = Csv.load "titanic/train.csv" in
+  Utils.uncons df
+
+let train_data =
+  List.filter_map
+    (fun r ->
+      let l = [ List.nth r 2; List.nth r 4; List.nth r 6; List.nth r 7 ] in
+      if List.exists (fun s -> s = "") l then None else Some l)
+    train_data_raw
+
+let categorized_data =
+  train_data |> Utils.transpose
+  |> List.map (fun f -> List.map (fun x -> Str x) f)
+  |> List.map (fun feature -> categorize feature)
+  |> Utils.transpose
+
+let _ = Num 0.1
 
 let _ =
-  List.iter
-    (fun (_, l) ->
-      print_int l;
-      print_string " ")
-    train
+  print_string "available columns: ";
+  String.concat " " header |> print_endline
 
-let test =
-  List.drop 100 all
-  |> List.map (fun (img, l) ->
-         (List.map (fun x -> if x > threshold then 1 else -1) img, l))
+let flat_data =
+  List.map
+    (fun sample ->
+      List.flatten sample
+      |> List.map (fun x ->
+             if x = 1 then 1
+             else if x = 0 then -1
+             else raise (Failure "social credit -100500")))
+    categorized_data
+
+let all =
+  List.combine flat_data
+    (List.map
+       (fun sample ->
+         let b = int_of_string (List.nth sample 1) in
+         if b = 1 then b
+         else if b = 0 then -1
+         else raise (Failure "social credit -100500"))
+       train_data_raw)
+
+let train = List.take 10 all
+let test = List.drop 10 all
+
+let _ =
+  List.iter (fun (_, o) -> print_int o) train;
+  print_endline ""
 
 module LinearNet = Sequantial (struct
-  let s = [ Linear (28 * 28, 4); Linear (4, 10) ]
+  let s = [ Linear (19, 10); Linear (10, 1) ]
 end)
 
 let _ = print_endline "creating predictor..."
@@ -64,13 +92,7 @@ let predictor =
   let cnf_to_opt = LinearNet.get_cnf train in
   let _ =
     print_endline "got cnf";
-    print_int (List.length cnf_to_opt);
-    print_endline " ";
-    print_int
-      (List.fold_left
-         (fun acc c -> if List.length c = 1 then acc + 1 else acc)
-         0 cnf_to_opt);
-    print_endline ""
+    print_int (List.length cnf_to_opt)
   in
   let solution = SATSolver.cdcl cnf_to_opt in
   let _ = print_endline "found some solution" in
@@ -85,8 +107,15 @@ let _ = print_endline "got predictor"
 let res =
   List.map
     (fun (img, l) ->
-      let p = List.find_index (fun x -> x = 1) (predictor img) in
-      match p with None -> l = 0 | Some v -> v = l)
+      let p = List.hd (predictor img) in
+      let _ =
+        print_int l;
+        print_newline ();
+        print_int p;
+        print_newline ()
+      in
+
+      p = l)
     test
 
 let _ = print_endline "got res"
@@ -97,4 +126,10 @@ let _ =
     |> float_of_int
   in
   tc /. float_of_int (List.length res) |> print_float
-(*49239822*)
+
+(*
+1 -1 -1 -1 1 -1 -1 -1 -1 -1 -1  1 -1 -1 -1 -1 -1 -1 1
+1 -1 -1 -1 1 -1 -1 -1  1  1  1  1  1  1  1  1  1  1 1
+1 1 1 1 1 1 1 1 -1 -1 -1 1 -1 -1 -1 -1 -1 -1 1 
+
+*)

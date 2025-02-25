@@ -70,3 +70,27 @@ let rec greater_than lst sz =
   if lst = [] then false
   else if sz = 0 then true
   else greater_than (List.tl lst) (sz - 1)
+
+let uncons lst =
+  match lst with
+  | [] -> raise (Failure "social rating -100500")
+  | h :: t -> (h, t)
+
+let rec int_to_vec_acc acc cur i m =
+  if cur = m then acc
+  else if cur = i then int_to_vec_acc (1 :: acc) (cur + 1) i m
+  else int_to_vec_acc (0 :: acc) (cur + 1) i m
+
+let int_to_vec i m = int_to_vec_acc [] 0 i m
+
+let rec transpose mat =
+  let column_opt, rest =
+    List.fold_left_map
+      (fun c row ->
+        match c with
+        | None -> (None, [])
+        | Some col -> (
+            match row with [] -> (None, []) | h :: t -> (Some (h :: col), t)))
+      (Some []) mat
+  in
+  match column_opt with None -> [] | Some c -> List.rev c :: transpose rest

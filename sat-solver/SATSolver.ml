@@ -174,10 +174,9 @@ let get_clause_by_var assignment clauses =
   arr
 
 let counter = ref 0
-let max_clause_cnt = int_of_float 1e6
-let max_clause_sz = 10
 
 let add_clause_to_clause_by_var clause clause_by_var =
+  counter := !counter + 1;
   List.iter
     (fun l ->
       let id = abs l in
@@ -186,14 +185,14 @@ let add_clause_to_clause_by_var clause clause_by_var =
 
 let add_clause (clauses_added, extra_clauses) clause_by_var clause =
   if List.is_empty clause then (clauses_added, extra_clauses)
-  else if clauses_added > max_clause_cnt || greater_than clause max_clause_sz
+  (* else if clauses_added > max_clause_cnt || greater_than clause max_clause_sz
   then
     ( (*maybe some heuristic to remove old*)
       clauses_added,
-      extra_clauses )
-  else (
+      extra_clauses ) *)
+    else (
     add_clause_to_clause_by_var clause clause_by_var;
-    (clauses_added, clause :: extra_clauses))
+    (clauses_added + 1, clause :: extra_clauses))
 
 let get_undef_clauses clauses assignment =
   List.filter (fun clause -> not (is_satisfiable assignment clause)) clauses
@@ -203,16 +202,10 @@ let rec cdcl_bf extra_clauses assignment possible_unit clause_by_var =
   else *)
   (* let stat = Gc.quick_stat () in
   let ab = stat.minor_words +. stat.major_words -. stat.promoted_words in *)
-  counter := !counter + 1;
-  if !counter mod 1000 = 0 then (
+  (* if !counter <> 0 && !counter mod 10 = 0 then (
+    print_endline " learnt clauses: ";
     print_int !counter;
-    print_endline " unit propagation finished, undef vars: ";
-    print_int
-      (Assign.fold_left
-         (fun acc e -> match e.value with UNDEF -> acc + 1 | _ -> acc)
-         0 assignment);
-    print_endline "");
-
+    print_endline ""); *)
   let propagated, conflict =
     unit_propagation possible_unit clause_by_var assignment
   in

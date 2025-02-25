@@ -319,3 +319,22 @@ let bnn_unit_tests =
        ]
 
 let _ = run_test_tt_main bnn_unit_tests
+
+let utils_unit_tests =
+  "Utils unit tests"
+  >::: [
+         ( "transpose №1" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list
+             [ [ 1; 0 ]; [ 0; 1 ] ]
+             (transpose [ [ 1; 0 ]; [ 0; 1 ] ]) );
+         ( "transpose №2" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list
+             [ [ 1; 0; 0 ]; [ 0; 0; 1 ] ]
+             (transpose [ [ 1; 0 ]; [ 0; 0 ]; [ 0; 1 ] ]) );
+         ( "transpose №3" >:: fun _ ->
+           assert_equal ~printer:string_of_int_list_list
+             [ [ 1; 0 ]; [ 0; 1 ] ]
+             (transpose [ [ 1; 0 ]; [ 0; 1 ] ]) );
+       ]
+
+let _ = run_test_tt_main utils_unit_tests

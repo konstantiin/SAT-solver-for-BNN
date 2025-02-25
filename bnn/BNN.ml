@@ -144,29 +144,48 @@ let linear_to_cnf (cnf, cfg, input) weights =
   let (cnf, cfg), res_vars =
     List.fold_left_map
       (fun acc line ->
-        (* print_endline "line finished"; *)
+        print_endline "line weights";
+        print_endline (string_of_int_list line);
+        print_endline "__________________|";
         scalar_mul_to_cnf acc (input, line))
       (cnf, cfg) weights
   in
-  (* print_endline "layer finished"; *)
   (cnf, cfg, res_vars)
 
-let input_to_vars cfg pixels =
-  List.map (fun pix -> if pix > 0 then cfg.g_true else cfg.g_false) pixels
+let input_to_vars cfg features =
+  List.map
+    (fun f ->
+      if f = 1 then cfg.g_true
+      else if f = -1 then cfg.g_false
+      else raise (Failure "social credit -100500"))
+    features
 
 let cnf_from_sample weights (cnf, cfg) sample =
   let input_p, output = sample in
   let input = input_to_vars cfg input_p in
-  (* let _ = print_endline "linear to cnf started" in *)
+  let _ =
+    print_endline "input:";
+    print_endline (string_of_int_list input);
+    print_endline "_"
+  in
   let cnf, cfg, last = List.fold_left linear_to_cnf (cnf, cfg, input) weights in
+  let _ =
+    print_endline (string_of_int_list last);
+    print_endline "_^_"
+  in
   let cnf =
+    if List.length last <> 1 then raise (Failure "social credit -100500");
+    add_clauses cnf cfg
+      (if output = 1 then [ [ List.hd last ] ] else [ [ -List.hd last ] ])
+  in
+  (* let cnf =
     List.fold_left2
       (fun cnf label i ->
         add_clauses cnf cfg
           (if i = output then [ [ label ] ] else [ [ -label ] ]))
       cnf last
       (0 -- (List.length last - 1))
-  in
+  in *)
   (cnf, cfg)
 
 module type S = sig
@@ -196,7 +215,12 @@ module Sequantial (Sequence : S) = struct
                 |> List.map (fun b -> if b then 1 else -1)
                 |> unflatten m n
               in
-              (List.drop w_cnt solution, fun x -> x |> linear weights |> sign))
+              let _ =
+                print_endline "weights";
+                print_endline (string_of_int_list_list weights)
+              in
+              ( List.drop w_cnt solution_cur,
+                fun x -> x |> linear weights |> sign ))
           (* (List.drop w_cnt solution, Fun.compose (linear weights) sign)) *)
         solution Sequence.s
     in
@@ -215,7 +239,7 @@ module Sequantial (Sequence : S) = struct
               let w_cnt = n * m in
               let cfg = alloc_weights cfg w_cnt in
               let cur_weights =
-                cfg.weights |> List.take w_cnt |> unflatten m n
+                cfg.weights |> List.take w_cnt |> List.rev |> unflatten m n
               in
               (cfg, cur_weights))
         cfg Sequence.s
