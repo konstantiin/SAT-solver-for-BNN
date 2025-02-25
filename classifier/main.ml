@@ -78,7 +78,7 @@ let _ =
   print_endline ""
 
 module LinearNet = Sequantial (struct
-  let s = [ Linear (19, 10); Linear (10, 1) ]
+  let s = [ Linear (19, 10); Linear (10, 10); Linear (10, 1) ]
 end)
 
 let _ = print_endline "creating predictor..."
@@ -126,10 +126,3 @@ let _ =
     |> float_of_int
   in
   tc /. float_of_int (List.length res) |> print_float
-
-(*
-1 -1 -1 -1 1 -1 -1 -1 -1 -1 -1  1 -1 -1 -1 -1 -1 -1 1
-1 -1 -1 -1 1 -1 -1 -1  1  1  1  1  1  1  1  1  1  1 1
-1 1 1 1 1 1 1 1 -1 -1 -1 1 -1 -1 -1 -1 -1 -1 1 
-
-*)
