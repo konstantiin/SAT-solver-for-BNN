@@ -1,12 +1,6 @@
 open Utils
 
 let scalar_mul v1 v2 =
-  (* let _ =
-    print_int (List.length v1);
-    print_string " ";
-    print_int (List.length v2);
-    print_endline ""
-  in *)
   List.combine v1 v2 |> List.fold_left (fun acc (e1, e2) -> acc + (e1 * e2)) 0
 
 let linear weights x = List.map (scalar_mul x) weights
@@ -46,10 +40,7 @@ let alloc_weights cfg n =
   match cfg.extra_vars with
   | [ 2; 1 ] ->
       let last = match cfg.weights with [] -> 2 | h :: _ -> h in
-      (* let _ =
-        print_int last;
-        print_endline ""
-      in *)
+
       {
         weights =
           List.fold_left
@@ -128,12 +119,6 @@ let mul_to_cnf (cnf, cfg) (v1, v2) =
   ((add_is_neg, cfg), e)
 
 let scalar_mul_to_cnf (cnf, cfg) (vec1, vec2) =
-  (* let _ =
-    print_int (List.length vec1);
-    print_endline "";
-    print_int (List.length vec2);
-    print_endline ""
-  in *)
   let (cnf, cfg), res_vars =
     List.fold_left_map mul_to_cnf (cnf, cfg) (List.combine vec1 vec2)
   in
@@ -143,11 +128,7 @@ let scalar_mul_to_cnf (cnf, cfg) (vec1, vec2) =
 let linear_to_cnf (cnf, cfg, input) weights =
   let (cnf, cfg), res_vars =
     List.fold_left_map
-      (fun acc line ->
-        print_endline "line weights";
-        print_endline (string_of_int_list line);
-        print_endline "__________________|";
-        scalar_mul_to_cnf acc (input, line))
+      (fun acc line -> scalar_mul_to_cnf acc (input, line))
       (cnf, cfg) weights
   in
   (cnf, cfg, res_vars)
@@ -163,16 +144,7 @@ let input_to_vars cfg features =
 let cnf_from_sample weights (cnf, cfg) sample =
   let input_p, output = sample in
   let input = input_to_vars cfg input_p in
-  let _ =
-    print_endline "input:";
-    print_endline (string_of_int_list input);
-    print_endline "_"
-  in
   let cnf, cfg, last = List.fold_left linear_to_cnf (cnf, cfg, input) weights in
-  let _ =
-    print_endline (string_of_int_list last);
-    print_endline "_^_"
-  in
   let cnf =
     if List.length last <> 1 then raise (Failure "social credit -100500");
     add_clauses cnf cfg
@@ -199,10 +171,6 @@ module Sequantial (Sequence : S) = struct
       0 Sequence.s
 
   let predictor_of_cnf_solution solution_r =
-    (* let _ =
-      print_int (List.length solution);
-      print_endline
-    in *)
     let solution = List.drop 2 solution_r in
     let _, sequence =
       List.fold_left_map
@@ -214,10 +182,6 @@ module Sequantial (Sequence : S) = struct
                 List.take w_cnt solution_cur
                 |> List.map (fun b -> if b then 1 else -1)
                 |> unflatten m n
-              in
-              let _ =
-                print_endline "weights";
-                print_endline (string_of_int_list_list weights)
               in
               ( List.drop w_cnt solution_cur,
                 fun x -> x |> linear weights |> sign ))
@@ -244,17 +208,13 @@ module Sequantial (Sequence : S) = struct
               (cfg, cur_weights))
         cfg Sequence.s
     in
-    (* let _ =
-      print_endline "weights allocated";
-      print_endline (string_of_int_list_list (List.flatten weights))
-    in *)
     let bsz = List.length train_batch in
     let _, (cnf, _) =
       List.fold_left
         (fun (i, acc) s ->
           let _ =
             print_int i;
-            print_string " out of ";
+            print_string " sample out of ";
             print_int bsz;
             print_endline ""
           in

@@ -56,11 +56,6 @@ let rec is_conflict assignment clause =
       | UNDEF -> false)
 
 let rec unit_propagation possible_clauses clause_by_var assignment =
-  (* let _ =
-    print_string "ok";
-    print_int (Seq.length possible_clauses);
-    print_endline ""
-  in *)
   match possible_clauses () with
   | Seq.Nil -> (assignment, None)
   | Seq.Cons (cur_clause, t) -> (
@@ -127,10 +122,6 @@ let get_undef_var assignment =
   get_undef_var_rec assignment 1 n
 
 let assignment_to_bool_list assignment =
-  (* let _ =
-    CCPersistentArray.length assignment |> print_int;
-    print_endline ""
-  in *)
   let omit0 = Assign.to_list assignment |> List.tail_opt in
   match omit0 with
   | None -> raise (Failure "could not convert to bool lists")
@@ -163,7 +154,7 @@ let get_clause_by_var assignment clauses =
   let arr = Array.make (max_var + 1) Seq.empty in
   List.iter
     (fun clause ->
-      if is_satisfiable assignment clause then print_endline "found sat"
+      if is_satisfiable assignment clause then ()
       else
         List.iter
           (fun l ->

@@ -3,19 +3,18 @@ open BNN
 type feature = Num of float | Str of string
 
 let categorize (features : feature list) =
+  let exc = Failure "features must be of one data type" in
   let uniq =
     let vals =
       List.sort_uniq
         (fun f1 f2 ->
           match f1 with
           | Num n1 -> (
-              match f2 with
-              | Str _ -> raise (Failure "social credit -100500")
-              | Num n2 -> Float.compare n1 n2)
+              match f2 with Str _ -> raise exc | Num n2 -> Float.compare n1 n2)
           | Str s1 -> (
               match f2 with
               | Str s2 -> String.compare s1 s2
-              | Num _ -> raise (Failure "social credit -100500")))
+              | Num _ -> raise exc))
         features
     in
     Utils.enumerate vals (List.length vals)
@@ -47,38 +46,32 @@ let categorized_data =
 let _ = Num 0.1
 
 let _ =
-  print_string "available columns: ";
+  print_string "available features: ";
   String.concat " " header |> print_endline
 
 let flat_data =
+  let exc = Failure "vlaues must be 1 or 0" in
   List.map
     (fun sample ->
       List.flatten sample
       |> List.map (fun x ->
-             if x = 1 then 1
-             else if x = 0 then -1
-             else raise (Failure "social credit -100500")))
+             if x = 1 then 1 else if x = 0 then -1 else raise exc))
     categorized_data
 
 let all =
+  let exc = Failure "vlaues must be 1 or 0" in
   List.combine flat_data
     (List.map
        (fun sample ->
          let b = int_of_string (List.nth sample 1) in
-         if b = 1 then b
-         else if b = 0 then -1
-         else raise (Failure "social credit -100500"))
+         if b = 1 then b else if b = 0 then -1 else raise exc)
        train_data_raw)
 
 let train = List.take 10 all
 let test = List.drop 10 all
 
-let _ =
-  List.iter (fun (_, o) -> print_int o) train;
-  print_endline ""
-
 module LinearNet = Sequantial (struct
-  let s = [ Linear (19, 10); Linear (10, 10); Linear (10, 1) ]
+  let s = [ Linear (19, 10); Linear (10, 1) ]
 end)
 
 let _ = print_endline "creating predictor..."
@@ -91,8 +84,9 @@ let save_weights weights =
 let predictor =
   let cnf_to_opt = LinearNet.get_cnf train in
   let _ =
-    print_endline "got cnf";
-    print_int (List.length cnf_to_opt)
+    print_string "got cnf of size ";
+    print_int (List.length cnf_to_opt);
+    print_newline ()
   in
   let solution = SATSolver.cdcl cnf_to_opt in
   let _ = print_endline "found some solution" in
@@ -108,17 +102,10 @@ let res =
   List.map
     (fun (img, l) ->
       let p = List.hd (predictor img) in
-      let _ =
-        print_int l;
-        print_newline ();
-        print_int p;
-        print_newline ()
-      in
-
       p = l)
     test
 
-let _ = print_endline "got res"
+let _ = print_endline "got accuracy: "
 
 let _ =
   let tc =
